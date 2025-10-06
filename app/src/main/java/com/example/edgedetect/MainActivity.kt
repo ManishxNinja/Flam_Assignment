@@ -2,29 +2,28 @@ package com.example.edgedetect
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
+import android.opengl.GLSurfaceView
 import android.os.*
 import androidx.appcompat.app.AppCompatActivity
-import android.util.Size
-import android.view.Surface
-import android.view.TextureView
 import androidx.core.app.ActivityCompat
+import android.util.Log
+import android.view.Surface
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.CvType
 import org.opencv.core.Mat
+import android.graphics.Bitmap
 
 class MainActivity : AppCompatActivity() {
 
     external fun processFrame(inputAddr: Long, outputAddr: Long)
 
     private lateinit var cameraDevice: CameraDevice
-    private lateinit var cameraCaptureSession: CameraCaptureSession
-    private lateinit var textureView: TextureView
+    private lateinit var captureSession: CameraCaptureSession
     private lateinit var cameraManager: CameraManager
+    private lateinit var glSurfaceView: GLSurfaceView
     private val cameraHandler = Handler(Looper.getMainLooper())
 
     companion object {
@@ -38,37 +37,35 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        textureView = findViewById(R.id.textureView)
+        // ✅ Initialize OpenGL SurfaceView
+        glSurfaceView = findViewById(R.id.glSurfaceView)
+        glSurfaceView.setEGLContextClientVersion(2)
+        glSurfaceView.setRenderer(GLRenderer())
+
+        // ✅ Initialize Camera Manager
         cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
 
+        // ✅ Check camera permission
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1)
             return
         }
 
-        textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-                openCamera()
-            }
-
-            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean = true
-        }
+        // ✅ Open camera once ready
+        openCamera()
     }
 
     private fun openCamera() {
         try {
-            val cameraId = cameraManager.cameraIdList[0]
+            val cameraId = cameraManager.cameraIdList[0] // use back camera
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
-                return
-            }
+                != PackageManager.PERMISSION_GRANTED) return
+
             cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
                     cameraDevice = camera
-                    startPreview()
+                    startCameraPreview()
                 }
 
                 override fun onDisconnected(camera: CameraDevice) {
@@ -77,44 +74,58 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onError(camera: CameraDevice, error: Int) {
                     camera.close()
+                    Log.e("Camera", "Error: $error")
                 }
             }, cameraHandler)
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun startPreview() {
-        val surfaceTexture = textureView.surfaceTexture!!
-        val surface = Surface(surfaceTexture)
+    private fun startCameraPreview() {
+        try {
+            val surfaceTexture = SurfaceTexture(10)
+            surfaceTexture.setDefaultBufferSize(640, 480)
+            val surface = Surface(surfaceTexture)
 
-        val captureRequestBuilder =
-            cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                addTarget(surface)
-            }
+            val captureRequestBuilder =
+                cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                    addTarget(surface)
+                }
 
-        cameraDevice.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
-            override fun onConfigured(session: CameraCaptureSession) {
-                cameraCaptureSession = session
-                session.setRepeatingRequest(captureRequestBuilder.build(), null, cameraHandler)
-            }
+            cameraDevice.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) {
+                    captureSession = session
+                    session.setRepeatingRequest(captureRequestBuilder.build(), null, cameraHandler)
+                }
 
-            override fun onConfigureFailed(session: CameraCaptureSession) {}
-        }, cameraHandler)
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    Log.e("Camera", "Configuration failed")
+                }
+            }, cameraHandler)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    // Optional: process frame using OpenCV (grayscale/edge)
-    private fun processCurrentFrame() {
-        val bitmap = textureView.bitmap ?: return
+    // 🧠 Optional: convert preview bitmap → OpenCV Mat → process → render
+    private fun processCurrentFrame(bitmap: Bitmap) {
         val matInput = Mat(bitmap.height, bitmap.width, CvType.CV_8UC4)
         val matOutput = Mat(bitmap.height, bitmap.width, CvType.CV_8UC4)
         Utils.bitmapToMat(bitmap, matInput)
-
         processFrame(matInput.nativeObjAddr, matOutput.nativeObjAddr)
-
         Utils.matToBitmap(matOutput, bitmap)
-        runOnUiThread {
-            textureView.bitmap = bitmap
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            captureSession.close()
+            cameraDevice.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }
