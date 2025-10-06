@@ -1,13 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Edge Detection Viewer</title>
-</head>
-<body style="display:flex;flex-direction:column;align-items:center;font-family:sans-serif;">
-  <h1>🧠 Edge Detection Output</h1>
-  <img id="processedFrame" alt="Processed frame will appear here" style="max-width:80%;border:2px solid #ccc;">
-  <p id="stats"></p>
-  <script src="main.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🧠 Edge Detection Viewer</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0d1117;
+        color: #e6edf3;
+        font-family: "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        gap: 20px;
+      }
+      h1 {
+        font-size: 1.8rem;
+        color: #58a6ff;
+      }
+      img {
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(88, 166, 255, 0.3);
+        max-width: 80%;
+        height: auto;
+        border: 2px solid #30363d;
+      }
+      .stats {
+        font-size: 1rem;
+        background: #161b22;
+        padding: 10px 20px;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+      }
+      footer {
+        position: absolute;
+        bottom: 10px;
+        font-size: 0.8rem;
+        color: #8b949e;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>🧠 Real-Time Edge Detection Output</h1>
+
+    <img
+      id="processedFrame"
+      src=""
+      width="200" height="150"
+      alt="Processed frame"
+    />
+
+    <div class="stats" id="stats">Loading frame...</div>
+    <div>This is the static data,we can dynamicaaly add live feed through sockets which we will fetch from Android.</div>
+
+    <footer>© 2025 Edge Detection R&D Viewer</footer>
+
+    <script src="main.js"></script>
+  </body>
 </html>
