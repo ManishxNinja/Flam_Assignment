@@ -20,8 +20,3 @@
 - `/gl` → OpenGL renderer
 - `/web` → TypeScript web viewer
 
-### 🧠 Evaluation
-- JNI integration ✔️  
-- OpenCV usage ✔️  
-- OpenGL rendering ✔️  
-- TypeScript web viewer ✔️  
